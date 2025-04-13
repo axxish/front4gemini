@@ -1,7 +1,14 @@
 <template>
   <div class="home-view">
+    <!-- Burger Menu Button (Mobile) -->
+    <button class="burger-menu" @click="toggleSidebar">
+      <div class="burger-line"></div>
+      <div class="burger-line"></div>
+      <div class="burger-line"></div>
+    </button>
+
     <!-- Sidebar for Conversations (REQ-002) -->
-    <div class="sidebar glass-effect">
+    <div :class="['sidebar', 'glass-effect', { 'sidebar-open': isSidebarOpen }]">
       <h2>Conversations</h2>
       <button @click="startNewConversation">+ New Chat</button>
       <ul>
@@ -33,6 +40,13 @@
         />
       </div>
     </div>
+
+    <!-- Overlay for mobile -->
+    <div 
+      v-if="isSidebarOpen" 
+      class="mobile-overlay"
+      @click="toggleSidebar"
+    ></div>
 
     <!-- Main Chat Area -->
     <div class="chat-area glass-effect">
@@ -199,38 +213,45 @@
         error.value = null;
 
         try {
-          // Ensure all messages have a `parts` property when adding to the conversation
+          // Add user message to conversation
           const userMessage = {
             role: 'user' as const,
             parts: [{ text: messageText }],
           };
-          if (
-            !currentConversation.value.history.some((msg) => {
-              return JSON.stringify(msg) === JSON.stringify(userMessage);
-            })
-          ) {
-            store.addMessageToCurrentConversation(
-              userMessage.parts[0].text,
-              'user'
-            );
-          }
+          store.addMessageToCurrentConversation(userMessage.parts[0].text, 'user');
 
           // Send the message to the API
           const result = await chatSession.value.sendMessage(messageText);
           const response = await result.response;
           const responseText = response.text();
 
-          // Add the model's response to the conversation history only if not already added
-          const modelMessage = {
-            role: 'model' as const,
-            parts: [{ text: responseText }],
-          };
-          if (
-            !currentConversation.value.history.some((msg) => {
-              return JSON.stringify(msg) === JSON.stringify(modelMessage);
-            })
-          ) {
-            store.addMessageToCurrentConversation(responseText, 'model');
+          // Add the model's response
+          store.addMessageToCurrentConversation(responseText, 'model');
+
+          // If this was the first model response in the conversation, generate a title
+          if (currentConversation.value.history.filter(msg => msg.role === 'model').length === 1) {
+            try {
+              // Create a new chat session just for the title generation
+              const genAI = new GoogleGenerativeAI(apiKey.value as string);
+              const titleSession = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' }).startChat({
+                generationConfig: {
+                  maxOutputTokens: 60,
+                }
+              });
+
+              // Send context and request a structured title
+              const titlePrompt = `Context - User: "${messageText}" Assistant: "${responseText}"
+Based on this exchange, generate a very concise and relevant title (max 6 words). Respond with ONLY the title - no quotes, no explanation, no extra text.`;
+
+              const titleResult = await titleSession.sendMessage(titlePrompt);
+              const titleResponse = await titleResult.response;
+              const title = titleResponse.text().trim();
+              
+              // Update the conversation name
+              store.updateConversationName(currentConversation.value.id, title);
+            } catch (e) {
+              console.error('Error generating title:', e);
+            }
           }
         } catch (e: any) {
           console.error('Error sending message:', e);
@@ -270,6 +291,14 @@
         store.deleteConversation(id);
       };
 
+      const isSidebarOpen = ref(false);
+
+      const toggleSidebar = () => {
+        isSidebarOpen.value = !isSidebarOpen.value;
+        // Prevent body scroll when sidebar is open on mobile
+        document.body.style.overflow = isSidebarOpen.value ? 'hidden' : '';
+      };
+
       return {
         apiKey,
         conversations,
@@ -286,6 +315,8 @@
         switchConversation,
         deleteConversation,
         renderMarkdown, // Add the renderMarkdown method to the returned object
+        isSidebarOpen,
+        toggleSidebar,
       };
     },
   });
@@ -580,5 +611,80 @@
 
   ::-webkit-scrollbar-thumb:hover {
     background: rgba(255, 255, 255, 0.5);
+  }
+
+  .burger-menu {
+    display: none; // Hidden by default on desktop
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    z-index: 1000;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 10px;
+    width: 40px;
+    height: 40px;
+    border-radius: 5px;
+    background-color: rgba(40, 167, 69, 0.7);
+
+    .burger-line {
+      width: 25px;
+      height: 2px;
+      background-color: white;
+      margin: 5px 0;
+      transition: 0.3s;
+    }
+
+    &:hover {
+      background-color: rgba(33, 136, 56, 0.9);
+    }
+  }
+
+  .mobile-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 100;
+  }
+
+  .sidebar {
+    transition: transform 0.3s ease;
+    z-index: 1000;
+  }
+
+  @media (max-width: 768px) {
+    .burger-menu {
+      display: block;
+    }
+
+    .mobile-overlay {
+      display: block;
+    }
+
+    .sidebar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 100vh;
+      width: 80%;
+      max-width: 300px;
+      margin: 0;
+      transform: translateX(-100%);
+
+      &.sidebar-open {
+        transform: translateX(0);
+      }
+    }
+
+    .chat-area {
+      width: 100%;
+      margin-left: 0;
+      padding-top: 60px; // Space for burger menu
+    }
   }
 </style>

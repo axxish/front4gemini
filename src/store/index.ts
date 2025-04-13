@@ -103,9 +103,9 @@ export const useAppStore = defineStore('app', {
       }
     },
 
-    async createNewConversation(name = 'New Conversation') {
+    async createNewConversation() {
       const newId = `conv-${Date.now()}`;
-      const defaultName = `${name} ${this.conversations.length + 1}`;
+      const defaultName = `New Chat ${this.conversations.length + 1}`;
 
       const newConversation = {
         id: newId,
@@ -117,23 +117,13 @@ export const useAppStore = defineStore('app', {
       this.conversations.push(newConversation);
       this.currentConversationId = newId;
       saveState(this.$state);
+    },
 
-      // Generate a short name for the conversation based on the first prompt and response
-      if (this.apiKey) {
-        try {
-          const genAI = new GoogleGenerativeAI(this.apiKey);
-          const chatSession = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' }).startChat();
-
-          const result = await chatSession.sendMessage('Generate a short name for this conversation. Respond with just the name, no special symbols, nothing extra.');
-          const response = await result.response;
-          const shortName = response.text();
-
-          // Update the conversation name
-          newConversation.name = shortName || defaultName;
-          saveState(this.$state);
-        } catch (error) {
-          console.error('Error generating short name:', error);
-        }
+    updateConversationName(id: string, name: string) {
+      const conversation = this.conversations.find(conv => conv.id === id);
+      if (conversation) {
+        conversation.name = name;
+        saveState(this.$state);
       }
     },
 
