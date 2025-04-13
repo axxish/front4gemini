@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // Define the structure for a single message in a conversation
 interface Message {
@@ -102,16 +103,38 @@ export const useAppStore = defineStore('app', {
       }
     },
 
-    createNewConversation(name = 'New Conversation') {
+    async createNewConversation(name = 'New Conversation') {
       const newId = `conv-${Date.now()}`;
-      this.conversations.push({
+      const defaultName = `${name} ${this.conversations.length + 1}`;
+
+      const newConversation = {
         id: newId,
-        name: `${name} ${this.conversations.length + 1}`,
+        name: defaultName,
         history: [],
         createdAt: Date.now(),
-      });
+      };
+
+      this.conversations.push(newConversation);
       this.currentConversationId = newId;
       saveState(this.$state);
+
+      // Generate a short name for the conversation based on the first prompt and response
+      if (this.apiKey) {
+        try {
+          const genAI = new GoogleGenerativeAI(this.apiKey);
+          const chatSession = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' }).startChat();
+
+          const result = await chatSession.sendMessage('Generate a short name for this conversation. Respond with just the name, no special symbols, nothing extra.');
+          const response = await result.response;
+          const shortName = response.text();
+
+          // Update the conversation name
+          newConversation.name = shortName || defaultName;
+          saveState(this.$state);
+        } catch (error) {
+          console.error('Error generating short name:', error);
+        }
+      }
     },
 
     switchConversation(id: string) {

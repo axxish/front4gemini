@@ -8,6 +8,7 @@
 | REQ-006  | Feature    | Securely store the user's API key locally                                   | Browser `localStorage` (Note: Client-side storage has security implications)      |
 | REQ-007  | Feature    | Send user prompts and context to the Google Gemini API                      | Google AI SDK (`@google/generative-ai`), JavaScript                               |
 | REQ-008  | Feature    | Display responses from the Google Gemini API                                | HTML, Vue.js                                                                      |
+| REQ-009  | Feature    | Automatically generate a short name for a conversation based on the user's first prompt and the model's first response | Google AI SDK (`@google/generative-ai`), JavaScript                               |
 | ARCH-001 | Constraint | The application must run entirely in the user's browser (Frontend-only)     | N/A                                                                               |
 | TECH-001 | Core       | Use Vue.js (Version 3 recommended) as the primary JavaScript framework      | Vue.js                                                                            |
 | TECH-002 | Core       | Use standard HTML and CSS for structure and styling                         | HTML, CSS                                                                         |
