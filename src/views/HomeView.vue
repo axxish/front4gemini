@@ -50,7 +50,13 @@
 
     <!-- Main Chat Area -->
     <div class="chat-area glass-effect">
-      <div v-if="currentConversation" class="chat-content">
+      <div v-if="!apiKey" class="api-key-missing">
+        <div class="alert">
+          <h3>⚠️ API Key Required</h3>
+          <p>Please enter your Google AI API key in the sidebar to start chatting.</p>
+        </div>
+      </div>
+      <div v-else-if="currentConversation" class="chat-content">
         <h3>{{ currentConversation.name }}</h3>
         <!-- Chat History (REQ-001, REQ-008) -->
         <div class="message-history">
@@ -685,6 +691,33 @@ Based on this exchange, generate a very concise and relevant title (max 6 words)
       width: 100%;
       margin-left: 0;
       padding-top: 60px; // Space for burger menu
+    }
+  }
+
+  .api-key-missing {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    text-align: center;
+
+    .alert {
+      background-color: rgba(255, 193, 7, 0.2);
+      border: 1px solid rgba(255, 193, 7, 0.5);
+      border-radius: 8px;
+      padding: 20px;
+      max-width: 400px;
+
+      h3 {
+        color: #ffc107;
+        margin-top: 0;
+        margin-bottom: 10px;
+      }
+
+      p {
+        margin: 0;
+        line-height: 1.5;
+      }
     }
   }
 </style>
