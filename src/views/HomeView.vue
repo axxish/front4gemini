@@ -9,41 +9,18 @@
 
     <!-- Sidebar for Conversations (REQ-002) -->
     <transition name="sidebar-slide">
-      <div v-if="!sidebarCollapsed" :class="['sidebar', 'glass-effect', { 'sidebar-open': isSidebarOpen }]">
-        <div class="sidebar-header">
-          <h2>Conversations</h2>
-          <button class="hide-sidebar-btn" @click="collapseSidebar" title="Hide menu">✖</button>
-        </div>
-        <button @click="startNewConversation">+ New Chat</button>
-        <div class="conversations-scroll">
-          <ul>
-            <li
-              v-for="conversation in conversations"
-              :key="conversation.id"
-              :class="{ active: conversation.id === currentConversationId }"
-              @click="switchConversation(conversation.id)"
-            >
-              <span>{{ conversation.name }}</span>
-              <button
-                class="delete-button"
-                @click.stop="deleteConversation(conversation.id)"
-              >
-                X
-              </button>
-            </li>
-          </ul>
-        </div>
-        <div class="api-key-section">
-          <label for="apiKey">API Key:</label>
-          <input
-            id="apiKey"
-            type="password"
-            :value="apiKey"
-            @input="updateApiKey(($event.target as HTMLInputElement).value)"
-            placeholder="Enter Google API Key"
-          />
-        </div>
-      </div>
+      <SidebarMenu
+        v-if="!sidebarCollapsed"
+        :conversations="conversations"
+        :currentConversationId="currentConversationId"
+        :apiKey="apiKey"
+        :isSidebarOpen="isSidebarOpen"
+        @collapse="collapseSidebar"
+        @new-conversation="startNewConversation"
+        @switch-conversation="switchConversation"
+        @delete-conversation="deleteConversation"
+        @update-api-key="updateApiKey"
+      />
     </transition>
     <button v-if="sidebarCollapsed" class="show-sidebar-btn" @click="expandSidebar" title="Show menu">☰</button>
 
@@ -55,7 +32,7 @@
     ></div>
 
     <!-- Main Chat Area -->
-    <div class="chat-area glass-effect">
+    <ChatArea>
       <div v-if="!apiKey" class="api-key-missing">
         <div class="alert">
           <h3>⚠️ API Key Required</h3>
@@ -65,48 +42,25 @@
       <div v-else-if="currentConversation" class="chat-content">
         <h3>{{ currentConversation.name }}</h3>
         <!-- Chat History (REQ-001, REQ-008) -->
-        <div class="message-history">
-          <div
-            v-for="(message, index) in currentConversation.history"
-            :key="index"
-            :class="['message', message.role, { error: message.role === 'model' && message.text.startsWith('[ERROR]') }]"
-          >
-            <strong>{{ message.role === 'user' ? 'You' : 'Gemini' }}:</strong>
-            <div class="markdown-content">
-              <span v-if="isLoading && !error && index === currentConversation.history.length - 1 && message.role === 'model' && !message.text">{{ spinnerChar }}</span>
-              <span v-else v-html="renderMarkdown(message.text.startsWith('[ERROR]') ? message.text.slice(7) : message.text)"></span>
-            </div>
-          </div>
-        </div>
-
+        <MessageList
+          :messages="currentConversation.history"
+          :isLoading="isLoading"
+          :error="error"
+          :spinnerChar="spinnerChar"
+          :renderMarkdown="renderMarkdown"
+        />
         <!-- User Input -->
-        <div class="user-input">
-          <textarea
-            v-model="userInput"
-            placeholder="Type your message..."
-            @keydown.enter.prevent="sendMessage"
-          ></textarea>
-          <button
-            v-if="!isLoading"
-            @click="sendMessage"
-            :disabled="!userInput.trim()"
-            title="Send"
-          >
-            Start
-          </button>
-          <button
-            v-else
-            @click="stopStreaming"
-            title="Stop streaming"
-          >
-            Stop
-          </button>
-        </div>
+        <UserInput
+          v-model="userInput"
+          :isLoading="isLoading"
+          @send="sendMessage"
+          @stop-streaming="stopStreaming"
+        />
       </div>
       <div v-else>
         <p>Select or start a conversation.</p>
       </div>
-    </div>
+    </ChatArea>
   </div>
 </template>
 
@@ -120,9 +74,19 @@
     ChatSession,
   } from '@google/generative-ai';
   import MarkdownIt from 'markdown-it';
+  import SidebarMenu from '@/components/Sidebar/Sidebar.vue';
+  import ChatArea from '@/components/Chat/ChatArea.vue';
+  import MessageList from '@/components/Chat/MessageList.vue';
+  import UserInput from '@/components/Chat/UserInput.vue';
 
   export default defineComponent({
     name: 'HomeView',
+    components: {
+      SidebarMenu,
+      ChatArea,
+      MessageList,
+      UserInput
+    },
     setup() {
       const md = new MarkdownIt({
         html: false,
@@ -441,6 +405,29 @@ Based on this exchange, generate a very concise and relevant title (max 6 words)
 </script>
 
 <style scoped lang="scss">
+  .api-key-missing {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    text-align: center;
+    .alert {
+      background-color: rgba(255, 193, 7, 0.2);
+      border: 1px solid rgba(255, 193, 7, 0.5);
+      border-radius: 8px;
+      padding: 20px;
+      max-width: 400px;
+      h3 {
+        color: #ffc107;
+        margin-top: 0;
+        margin-bottom: 10px;
+      }
+      p {
+        margin: 0;
+        line-height: 1.5;
+      }
+    }
+  }
   .home-view {
     display: flex;
     flex-direction: row;
@@ -451,348 +438,10 @@ Based on this exchange, generate a very concise and relevant title (max 6 words)
     background: none;
     justify-content: center;
     align-items: center;
-  }
-
-  .glass-effect {
-    background: rgba(255, 255, 255, 0.1); // Semi-transparent white (REQ-003)
-    backdrop-filter: blur(10px); // Blur effect (REQ-003)
-    border-radius: 15px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    padding: 20px;
-    box-sizing: border-box;
-    color: #fff;
-  }
-
-  .sidebar {
-    position: absolute;
-    left: 0;
-    top: 50%;
-    transform: translateY(-50%);
-    bottom: 0;
-    height: 96vh;
-    max-height: 96vh;
-    display: flex;
-    flex-direction: column;
-    z-index: 2;
-    width: 320px;
-    min-width: 220px;
-    max-width: 400px;
-    transition: width 0.3s cubic-bezier(.4,2,.6,1), opacity 0.3s;
-    overflow: hidden;
-    box-sizing: border-box;
-    
-    h2 {
-      margin-top: 0;
-      text-align: center;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.3);
-      padding-bottom: 10px;
-    }
-
-    button {
-      background-color: rgba(255, 255, 255, 0.3);
-      color: white;
-      border: none;
-      padding: 10px 15px;
-      border-radius: 8px;
-      cursor: pointer;
-      margin-bottom: 15px;
-      transition: background-color 0.3s ease;
-
-      &:hover {
-        background-color: rgba(255, 255, 255, 0.5);
-      }
-    }
-
-    .conversations-scroll {
-      flex: 1 1 auto;
-      overflow-y: auto;
-      min-height: 0;
-      max-height: 100%;
-    }
-
-    ul {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-      flex-grow: 1; // Take remaining space
-
-      li {
-        padding: 10px;
-        margin-bottom: 5px;
-        border-radius: 5px;
-        cursor: pointer;
-        transition: background-color 0.3s ease;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-
-        &:hover {
-          background-color: rgba(255, 255, 255, 0.2);
-        }
-
-        &.active {
-          background-color: rgba(255, 255, 255, 0.4);
-          font-weight: bold;
-        }
-      }
-    }
-
-    .api-key-section {
-      margin-top: auto;
-      padding-top: 15px;
-      border-top: 1px solid rgba(255, 255, 255, 0.3);
-      padding-bottom: env(safe-area-inset-bottom, 24px); // Add safe area for Android/iOS bottom menu
-
-      label {
-        display: block;
-        margin-bottom: 5px;
-      }
-
-      input {
-        width: 100%;
-        padding: 8px;
-        border-radius: 5px;
-        border: 1px solid rgba(255, 255, 255, 0.3);
-        background-color: rgba(0, 0, 0, 0.2);
-        color: white;
-        box-sizing: border-box;
-      }
-    }
-  }
-
-  .sidebar-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 10px;
-    h2 {
-      margin: 0;
-      flex: 1;
-      text-align: left;
-      font-size: 1.2em;
-    }
-  }
-
-  .hide-sidebar-btn {
-    background: none;
-    border: none;
-    color: #fff;
-    font-size: 1.5em;
-    cursor: pointer;
-    margin-left: 10px;
-    padding: 0 8px;
-    transition: color 0.2s;
-    &:hover {
-      color: #ffc107;
-    }
-  }
-
-  input {
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 5px;
-    padding: 8px;
-    background-color: rgba(0, 0, 0, 0.2);
-    color: white;
-    box-sizing: border-box;
-    outline: none;
-    transition: box-shadow 0.3s ease, border-color 0.3s ease; // Smooth tween for glow effect
-  }
-
-  input:focus {
-    border-color: rgba(40, 167, 69, 0.7); // Green border on focus
-    box-shadow: 0 0 10px rgba(40, 167, 69, 0.7); // Green glow effect
-  }
-
-  .chat-area {
-    position: relative;
-    z-index: 1;
-    width: 700px;
-    max-width: 700px;
-    min-width: 350px;
-    margin: auto;
-    align-self: center;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start;
-    height: auto;
-    max-height: 96vh;
-
-    .chat-content {
-      flex-grow: 1;
-      display: flex;
-      flex-direction: column;
-      overflow-y: hidden; // Hide scrollbar for the container
-
-      h3 {
-        margin-top: 0;
-        padding-bottom: 10px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.3);
-      }
-
-      .message-history {
-        flex-grow: 1;
-        overflow-y: auto; // Enable scrolling for messages
-        margin-bottom: 15px;
-        padding-right: 10px; // Space for scrollbar
-
-        .message {
-          margin-bottom: 15px;
-          padding: 10px;
-          border-radius: 8px;
-          max-width: 80%;
-
-          strong {
-            display: block;
-            margin-bottom: 4px;
-          }
-
-          .markdown-content {
-            word-wrap: break-word;
-            white-space: normal;
-            line-height: 1.4;
-
-            :deep(ul),
-            :deep(ol) {
-              margin: 0 0 10px 0; // Add spacing between lists
-              padding-left: 1.5em;
-              padding-top: 10px; // Add top padding to lists
-            }
-
-            :deep(li) {
-              list-style-position: outside;
-              margin: 0 0 5px 0; // Add spacing between list items
-              padding: 0;
-            }
-
-            :deep(ul) {
-              list-style-type: disc;
-            }
-
-            :deep(p) {
-              display: inline;
-              margin: 0;
-            }
-
-            :deep(p) {
-              margin: 0 0 10px 0; // Add spacing between paragraphs
-            }
-          }
-
-          &.user {
-            background-color: rgba(0, 123, 255, 0.3);
-            margin-left: auto;
-            text-align: right;
-            padding-right: 15px; // Add right padding for user messages
-          }
-
-          &.model {
-            background-color: rgba(40, 167, 69, 0.4);
-            margin-right: auto;
-            text-align: left;
-            padding-left: 15px; // Add left padding for model messages
-          }
-        }
-      }
-
-      .user-input {
-        display: flex;
-        margin-top: auto; // Push input to the bottom
-        padding-top: 15px;
-        border-top: 1px solid rgba(255, 255, 255, 0.3);
-
-        textarea {
-          flex-grow: 1;
-          margin-right: 10px;
-          padding: 10px;
-          border-radius: 8px;
-          border: 1px solid rgba(255, 255, 255, 0.3);
-          background-color: rgba(0, 0, 0, 0.2);
-          color: white;
-          resize: none; // Prevent manual resizing
-          min-height: 40px; // Minimum height for one line
-          max-height: 150px; // Maximum height before scrolling
-          overflow-y: auto;
-          transition: box-shadow 0.3s ease, border-color 0.3s ease; // Smooth tween for glow effect
-          -webkit-appearance: none; // Remove OS-specific styles
-          -moz-appearance: none;
-          appearance: none;
-        }
-
-        textarea:focus {
-          border-color: rgba(40, 167, 69, 0.7); // Green border on focus
-          box-shadow: 0 0 10px rgba(40, 167, 69, 0.7); // Green glow effect
-          outline: none; // Remove OS-specific focus outline
-        }
-
-        button {
-          background-color: rgba(40, 167, 69, 0.7);
-          color: white;
-          border: none;
-          padding: 10px 20px;
-          border-radius: 8px;
-          cursor: pointer;
-          transition: background-color 0.3s ease;
-          font-size: 2rem;
-          font-family: 'Fira Mono', 'Consolas', 'Menlo', 'Monaco', 'Liberation Mono', 'Courier New', monospace;
-          min-width: 100px; // Ensures button width stays the same for both 'Start' and 'Stop'
-          text-align: center;
-
-          &:hover:not(:disabled) {
-            background-color: rgba(33, 136, 56, 0.9);
-          }
-
-          &:disabled {
-            background-color: rgba(108, 117, 125, 0.5);
-            cursor: not-allowed;
-          }
-        }
-      }
-      p {
-        margin-top: 5px;
-        &.error {
-          color: #ffc107; // Warning color for errors
-        }
-      }
-    }
-  }
-
-  .delete-button {
-    background: none;
-    border: none;
-    color: red;
-    font-size: 16px;
-    cursor: pointer;
-    margin-left: auto;
     padding: 0;
-    transition: color 0.3s ease;
   }
-
-  .delete-button:hover {
-    color: darkred;
-  }
-
-  /* Basic Scrollbar Styling (Optional) */
-  ::-webkit-scrollbar {
-    width: 8px;
-  }
-
-  ::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 10px;
-  }
-
-  ::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.3);
-    border-radius: 10px;
-  }
-
-  ::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.5);
-  }
-
   .burger-menu {
-    display: none; // Hidden by default on desktop
+    display: none;
     position: fixed;
     top: 20px;
     left: 20px;
@@ -805,7 +454,6 @@ Based on this exchange, generate a very concise and relevant title (max 6 words)
     height: 40px;
     border-radius: 5px;
     background-color: rgba(40, 167, 69, 0.7);
-
     .burger-line {
       width: 25px;
       height: 2px;
@@ -813,12 +461,10 @@ Based on this exchange, generate a very concise and relevant title (max 6 words)
       margin: 5px 0;
       transition: 0.3s;
     }
-
     &:hover {
       background-color: rgba(33, 136, 56, 0.9);
     }
   }
-
   .mobile-overlay {
     display: none;
     position: fixed;
@@ -829,115 +475,6 @@ Based on this exchange, generate a very concise and relevant title (max 6 words)
     background-color: rgba(0, 0, 0, 0.5);
     z-index: 100;
   }
-
-  .sidebar {
-    transition: transform 0.3s ease;
-    z-index: 1000;
-  }
-
-  @media (max-width: 768px) {
-    .burger-menu {
-      display: block;
-    }
-
-    .mobile-overlay {
-      display: block;
-    }
-
-    .sidebar {
-      position: fixed;
-      top: 0;
-      left: 0;
-      height: 100vh;
-      width: 80%;
-      max-width: 300px;
-      margin: 0;
-      transform: translateX(-100%);
-
-      &.sidebar-open {
-        transform: translateX(0);
-      }
-    }
-
-    .chat-area {
-      width: 100%;
-      margin-left: 0;
-      padding-top: 60px; // Space for burger menu
-    }
-  }
-
-  @media (max-width: 1100px) {
-    .chat-area {
-      max-width: 100vw;
-      min-width: 0;
-      width: 100vw;
-      margin: 0 10px;
-      height: 90vh;
-    }
-  }
-
-  .api-key-missing {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    text-align: center;
-
-    .alert {
-      background-color: rgba(255, 193, 7, 0.2);
-      border: 1px solid rgba(255, 193, 7, 0.5);
-      border-radius: 8px;
-      padding: 20px;
-      max-width: 400px;
-
-      h3 {
-        color: #ffc107;
-        margin-top: 0;
-        margin-bottom: 10px;
-      }
-
-      p {
-        margin: 0;
-        line-height: 1.5;
-      }
-    }
-  }
-
-  .home-view {
-    display: flex;
-    height: 100vh;
-    width: 100vw;
-    padding: 0;
-    box-sizing: border-box;
-    justify-content: center;
-    align-items: stretch;
-  }
-
-  .sidebar {
-    flex: 0 0 auto;
-    min-width: 200px;
-    max-width: 350px;
-    width: 100%;
-    margin-right: 0;
-  }
-
-  .chat-area {
-    flex: 0 0 700px;
-    max-width: 700px;
-    min-width: 350px;
-    margin: 0 40px;
-    align-self: center;
-  }
-
-  @media (max-width: 1100px) {
-    .chat-area {
-      max-width: 100vw;
-      min-width: 0;
-      width: 100vw;
-      margin: 0 10px;
-    }
-  }
-
   .show-sidebar-btn {
     position: absolute;
     left: 0;
@@ -954,12 +491,34 @@ Based on this exchange, generate a very concise and relevant title (max 6 words)
     transition: background 0.2s;
     &:hover { background: rgba(33, 136, 56, 0.9); }
   }
-
   .sidebar-slide-enter-active, .sidebar-slide-leave-active {
     transition: width 0.3s cubic-bezier(.4,2,.6,1), opacity 0.3s;
   }
   .sidebar-slide-enter-from, .sidebar-slide-leave-to {
     width: 0;
     opacity: 0;
+  }
+  /* Basic Scrollbar Styling (Optional) */
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 10px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.5);
+  }
+  @media (max-width: 768px) {
+    .burger-menu {
+      display: block;
+    }
+    .mobile-overlay {
+      display: block;
+    }
   }
 </style>
