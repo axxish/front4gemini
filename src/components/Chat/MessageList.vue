@@ -1,15 +1,17 @@
 <template>
-  <div class="message-history">
-    <MessageItem
-      v-for="(message, index) in messages"
-      :key="index"
-      :message="message"
-      :is-last="index === messages.length - 1"
-      :is-loading="isLoading"
-      :error="error"
-      :spinner-char="spinnerChar"
-      :render-markdown="renderMarkdown"
-    />
+  <div class="message-history-scrollable">
+    <div class="message-history">
+      <MessageItem
+        v-for="(message, index) in messages"
+        :key="index"
+        :message="message"
+        :is-last="index === messages.length - 1"
+        :is-loading="isLoading"
+        :error="error"
+        :spinner-char="spinnerChar"
+        :render-markdown="renderMarkdown"
+      />
+    </div>
   </div>
 </template>
 
@@ -30,10 +32,17 @@ export default defineComponent({
 </script>
 
 <style scoped lang="scss">
-  .message-history {
-    flex-grow: 1;
-    overflow-y: auto;
-    margin-bottom: 15px;
-    padding-right: 10px;
-  }
+.message-history-scrollable {
+  flex-grow: 1;
+  min-height: 0;
+  max-height: calc(100vh - 180px); // Adjust 180px as needed for header, input, and padding
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+.message-history {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
 </style>

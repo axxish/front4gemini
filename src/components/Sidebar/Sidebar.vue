@@ -47,19 +47,27 @@ export default defineComponent({
     color: #fff;
   }
   .sidebar {
-    position: absolute;
+    position: fixed;
     left: 0;
-    top: 50%;
-    transform: translateY(-50%);
-    bottom: 0;
-    height: 96vh;
-    max-height: 96vh;
-    display: flex;
-    flex-direction: column;
-    z-index: 2;
+    top: 0;
+    height: 100vh;
+    min-height: 100vh;
+    max-height: 100vh;
     width: 320px;
     min-width: 220px;
     max-width: 400px;
+    margin: 0;
+    border-radius: 0;
+    border-top: none;
+    border-bottom: none;
+    border-left: none;
+    border-right: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    display: flex;
+    flex-direction: column;
+    z-index: 2;
     transition: width 0.3s cubic-bezier(.4,2,.6,1), opacity 0.3s;
     overflow: hidden;
     box-sizing: border-box;

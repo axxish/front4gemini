@@ -217,18 +217,20 @@
         userInput.value = ''; // Clear input field immediately
         error.value = null;
 
+        // Declare streamingMessageId and streamingMessage here for use in try/catch
+        const streamingMessageId = `msg-streaming-${Date.now()}`;
+        const streamingMessage = {
+          id: streamingMessageId,
+          role: 'model' as const,
+          text: '',
+          timestamp: Date.now(),
+        };
+
         try {
           // Add user message to conversation
           store.addMessageToCurrentConversation(messageText, 'user');
 
           // Add a temporary streaming model message
-          const streamingMessageId = `msg-streaming-${Date.now()}`;
-          const streamingMessage = {
-            id: streamingMessageId,
-            role: 'model' as const, // Fix: ensure literal type
-            text: '',
-            timestamp: Date.now(),
-          };
           if (currentConversation.value) {
             currentConversation.value.history.push(streamingMessage);
           }
@@ -285,7 +287,13 @@ Based on this exchange, generate a very concise and relevant title (max 6 words)
         } catch (e: any) {
           stopStreamController = null;
           console.error('Error sending message:', e);
-          error.value = `Error communicating with Gemini: ${e.message}`;
+          // Place error in the existing streaming message instead of adding a new one
+          if (currentConversation.value) {
+            const msg = currentConversation.value.history.find(m => m.id === streamingMessageId);
+            if (msg) {
+              msg.text = '[ERROR]' + (e?.message || 'Unknown error');
+            }
+          }
         } finally {
           isSending = false; // Release lock
           isLoading.value = false; // Reset loading state

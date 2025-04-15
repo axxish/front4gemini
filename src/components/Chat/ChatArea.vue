@@ -23,17 +23,25 @@ export default defineComponent({
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
-    height: auto;
-    max-height: 96vh;
+    height: 100vh;
+    max-height: 100vh;
+    overflow: hidden;
     .chat-content {
-      flex-grow: 1;
+      flex: 1 1 0;
       display: flex;
       flex-direction: column;
-      overflow-y: hidden;
+      min-height: 0;
+      overflow: hidden;
       h3 {
         margin-top: 0;
         padding-bottom: 10px;
         border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+      }
+      .message-history {
+        flex-grow: 1;
+        overflow-y: auto;
+        min-height: 0;
+        max-height: 100%;
       }
     }
   }
