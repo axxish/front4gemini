@@ -401,14 +401,14 @@ Based on this exchange, generate a very concise and relevant title (max 6 words)
 
       onMounted(() => {
         window.addEventListener('resize', updateSidebarWidth);
-        nextTick(updateSidebarWidth);
+        nextTick().then(updateSidebarWidth);
       });
       onUnmounted(() => {
         window.removeEventListener('resize', updateSidebarWidth);
       });
       // Also update after sidebar is shown/hidden
-      watch(() => sidebarCollapsed.value, () => nextTick(updateSidebarWidth));
-      watch(() => isSidebarOpen.value, () => nextTick(updateSidebarWidth));
+      watch(() => sidebarCollapsed.value, () => { nextTick().then(updateSidebarWidth); });
+      watch(() => isSidebarOpen.value, () => { nextTick().then(updateSidebarWidth); });
 
       return {
         apiKey,
