@@ -8,38 +8,44 @@
     </button>
 
     <!-- Sidebar for Conversations (REQ-002) -->
-    <div :class="['sidebar', 'glass-effect', { 'sidebar-open': isSidebarOpen }]">
-      <h2>Conversations</h2>
-      <button @click="startNewConversation">+ New Chat</button>
-      <ul>
-        <li
-          v-for="conversation in conversations"
-          :key="conversation.id"
-          :class="{ active: conversation.id === currentConversationId }"
-          @click="switchConversation(conversation.id)"
-        >
-          <span>{{ conversation.name }}</span>
-          <button
-            class="delete-button"
-            @click.stop="deleteConversation(conversation.id)"
-          >
-            X
-          </button>
-        </li>
-      </ul>
-
-      <!-- API Key Input (REQ-005) -->
-      <div class="api-key-section">
-        <label for="apiKey">API Key:</label>
-        <input
-          id="apiKey"
-          type="password"
-          :value="apiKey"
-          @input="updateApiKey(($event.target as HTMLInputElement).value)"
-          placeholder="Enter Google API Key"
-        />
+    <transition name="sidebar-slide">
+      <div v-if="!sidebarCollapsed" :class="['sidebar', 'glass-effect', { 'sidebar-open': isSidebarOpen }]">
+        <div class="sidebar-header">
+          <h2>Conversations</h2>
+          <button class="hide-sidebar-btn" @click="collapseSidebar" title="Hide menu">✖</button>
+        </div>
+        <button @click="startNewConversation">+ New Chat</button>
+        <div class="conversations-scroll">
+          <ul>
+            <li
+              v-for="conversation in conversations"
+              :key="conversation.id"
+              :class="{ active: conversation.id === currentConversationId }"
+              @click="switchConversation(conversation.id)"
+            >
+              <span>{{ conversation.name }}</span>
+              <button
+                class="delete-button"
+                @click.stop="deleteConversation(conversation.id)"
+              >
+                X
+              </button>
+            </li>
+          </ul>
+        </div>
+        <div class="api-key-section">
+          <label for="apiKey">API Key:</label>
+          <input
+            id="apiKey"
+            type="password"
+            :value="apiKey"
+            @input="updateApiKey(($event.target as HTMLInputElement).value)"
+            placeholder="Enter Google API Key"
+          />
+        </div>
       </div>
-    </div>
+    </transition>
+    <button v-if="sidebarCollapsed" class="show-sidebar-btn" @click="expandSidebar" title="Show menu">☰</button>
 
     <!-- Overlay for mobile -->
     <div 
@@ -63,13 +69,13 @@
           <div
             v-for="(message, index) in currentConversation.history"
             :key="index"
-            :class="['message', message.role]"
+            :class="['message', message.role, { error: message.role === 'model' && message.text.startsWith('[ERROR]') }]"
           >
             <strong>{{ message.role === 'user' ? 'You' : 'Gemini' }}:</strong>
-            <div
-              class="markdown-content"
-              v-html="renderMarkdown(message.text)"
-            ></div>
+            <div class="markdown-content">
+              <span v-if="isLoading && !error && index === currentConversation.history.length - 1 && message.role === 'model' && !message.text">{{ spinnerChar }}</span>
+              <span v-else v-html="renderMarkdown(message.text.startsWith('[ERROR]') ? message.text.slice(7) : message.text)"></span>
+            </div>
           </div>
         </div>
 
@@ -81,14 +87,21 @@
             @keydown.enter.prevent="sendMessage"
           ></textarea>
           <button
+            v-if="!isLoading"
             @click="sendMessage"
-            :disabled="!userInput.trim() || isLoading"
+            :disabled="!userInput.trim()"
+            title="Send"
           >
-            Send
+            Start
+          </button>
+          <button
+            v-else
+            @click="stopStreaming"
+            title="Stop streaming"
+          >
+            Stop
           </button>
         </div>
-        <p v-if="isLoading">Loading...</p>
-        <p v-if="error">{{ error }}</p>
       </div>
       <div v-else>
         <p>Select or start a conversation.</p>
@@ -98,7 +111,7 @@
 </template>
 
 <script lang="ts">
-  import { defineComponent, ref, computed, watch } from 'vue';
+  import { defineComponent, ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
   import { useAppStore } from '@/store'; // Corrected path
   import {
     GoogleGenerativeAI,
@@ -147,11 +160,28 @@
       const error = ref<string | null>(null);
       let chatSession = ref<ChatSession | null>(null);
       let isSending = false; // Global lock to prevent concurrent sends
+      let stopStreamController: AbortController | null = null;
 
       const apiKey = computed(() => store.getApiKey);
       const conversations = computed(() => store.conversations);
       const currentConversationId = computed(() => store.currentConversationId);
       const currentConversation = computed(() => store.currentConversation);
+
+      // Spinner animation state
+      const spinnerFrames = ['|', '/', '-', '\\'];
+      const spinnerChar = ref(spinnerFrames[0]);
+      let spinnerIndex = 0;
+      let spinnerInterval: number | null = null;
+
+      onMounted(() => {
+        spinnerInterval = window.setInterval(() => {
+          spinnerIndex = (spinnerIndex + 1) % spinnerFrames.length;
+          spinnerChar.value = spinnerFrames[spinnerIndex];
+        }, 120);
+      });
+      onUnmounted(() => {
+        if (spinnerInterval) clearInterval(spinnerInterval);
+      });
 
       // Function to initialize or update the chat session when API key or conversation changes
       const initializeChat = () => {
@@ -240,7 +270,8 @@
           }
 
           // Use streaming API
-          const stream = await chatSession.value.sendMessageStream(messageText);
+          stopStreamController = new AbortController();
+          const stream = await chatSession.value.sendMessageStream(messageText, { signal: stopStreamController.signal });
           let fullText = '';
           for await (const chunk of stream.stream) {
             fullText += chunk.text();
@@ -250,6 +281,7 @@
               if (msg) msg.text = fullText;
             }
           }
+          stopStreamController = null;
 
           // Replace the streaming message with a finalized message
           if (currentConversation.value) {
@@ -287,11 +319,19 @@ Based on this exchange, generate a very concise and relevant title (max 6 words)
           }
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (e: any) {
+          stopStreamController = null;
           console.error('Error sending message:', e);
           error.value = `Error communicating with Gemini: ${e.message}`;
         } finally {
           isSending = false; // Release lock
           isLoading.value = false; // Reset loading state
+        }
+      };
+
+      const stopStreaming = () => {
+        if (stopStreamController) {
+          stopStreamController.abort();
+          stopStreamController = null;
         }
       };
 
@@ -325,12 +365,50 @@ Based on this exchange, generate a very concise and relevant title (max 6 words)
       };
 
       const isSidebarOpen = ref(false);
+      const sidebarCollapsed = ref(false);
+      const collapseSidebar = () => { sidebarCollapsed.value = true; };
+      const expandSidebar = () => { sidebarCollapsed.value = false; };
 
       const toggleSidebar = () => {
         isSidebarOpen.value = !isSidebarOpen.value;
-        // Prevent body scroll when sidebar is open on mobile
-        document.body.style.overflow = isSidebarOpen.value ? 'hidden' : '';
       };
+
+      const hideSidebar = () => {
+        isSidebarOpen.value = false;
+      };
+
+      const sidebarWidth = ref('320px');
+
+      function updateSidebarWidth() {
+        // Only run on desktop
+        if (window.innerWidth > 1100) {
+          nextTick(() => {
+            const chatArea = document.querySelector('.chat-area') as HTMLElement;
+            const sidebar = document.querySelector('.sidebar') as HTMLElement;
+            if (chatArea && sidebar) {
+              const chatRect = chatArea.getBoundingClientRect();
+              // The left space is the distance from the left edge to the chat area minus margin
+              const leftSpace = Math.max(chatRect.left - 40, 200); // 40px margin, min 200px
+              sidebar.style.width = leftSpace + 'px';
+            }
+          });
+        } else {
+          // On mobile, use default width
+          const sidebar = document.querySelector('.sidebar') as HTMLElement;
+          if (sidebar) sidebar.style.width = '';
+        }
+      }
+
+      onMounted(() => {
+        window.addEventListener('resize', updateSidebarWidth);
+        nextTick(updateSidebarWidth);
+      });
+      onUnmounted(() => {
+        window.removeEventListener('resize', updateSidebarWidth);
+      });
+      // Also update after sidebar is shown/hidden
+      watch(() => sidebarCollapsed.value, () => nextTick(updateSidebarWidth));
+      watch(() => isSidebarOpen.value, () => nextTick(updateSidebarWidth));
 
       return {
         apiKey,
@@ -350,6 +428,13 @@ Based on this exchange, generate a very concise and relevant title (max 6 words)
         renderMarkdown, // Add the renderMarkdown method to the returned object
         isSidebarOpen,
         toggleSidebar,
+        hideSidebar,
+        spinnerChar,
+        stopStreaming,
+        sidebarCollapsed,
+        collapseSidebar,
+        expandSidebar,
+        sidebarWidth,
       };
     },
   });
@@ -358,10 +443,14 @@ Based on this exchange, generate a very concise and relevant title (max 6 words)
 <style scoped lang="scss">
   .home-view {
     display: flex;
-    height: 100vh; // Use full viewport height
-    width: 100%;
-    padding: 20px;
+    flex-direction: row;
+    height: 100vh;
+    width: 100vw;
     box-sizing: border-box;
+    position: relative;
+    background: none;
+    justify-content: center;
+    align-items: center;
   }
 
   .glass-effect {
@@ -376,12 +465,23 @@ Based on this exchange, generate a very concise and relevant title (max 6 words)
   }
 
   .sidebar {
-    width: 250px;
-    margin-right: 20px;
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    bottom: 0;
+    height: 96vh;
+    max-height: 96vh;
     display: flex;
     flex-direction: column;
-    overflow-y: auto; // Allow scrolling if content overflows
-
+    z-index: 2;
+    width: 320px;
+    min-width: 220px;
+    max-width: 400px;
+    transition: width 0.3s cubic-bezier(.4,2,.6,1), opacity 0.3s;
+    overflow: hidden;
+    box-sizing: border-box;
+    
     h2 {
       margin-top: 0;
       text-align: center;
@@ -402,6 +502,13 @@ Based on this exchange, generate a very concise and relevant title (max 6 words)
       &:hover {
         background-color: rgba(255, 255, 255, 0.5);
       }
+    }
+
+    .conversations-scroll {
+      flex: 1 1 auto;
+      overflow-y: auto;
+      min-height: 0;
+      max-height: 100%;
     }
 
     ul {
@@ -432,9 +539,10 @@ Based on this exchange, generate a very concise and relevant title (max 6 words)
     }
 
     .api-key-section {
-      margin-top: auto; // Push to the bottom
+      margin-top: auto;
       padding-top: 15px;
       border-top: 1px solid rgba(255, 255, 255, 0.3);
+      padding-bottom: env(safe-area-inset-bottom, 24px); // Add safe area for Android/iOS bottom menu
 
       label {
         display: block;
@@ -450,6 +558,33 @@ Based on this exchange, generate a very concise and relevant title (max 6 words)
         color: white;
         box-sizing: border-box;
       }
+    }
+  }
+
+  .sidebar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    h2 {
+      margin: 0;
+      flex: 1;
+      text-align: left;
+      font-size: 1.2em;
+    }
+  }
+
+  .hide-sidebar-btn {
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 1.5em;
+    cursor: pointer;
+    margin-left: 10px;
+    padding: 0 8px;
+    transition: color 0.2s;
+    &:hover {
+      color: #ffc107;
     }
   }
 
@@ -470,12 +605,18 @@ Based on this exchange, generate a very concise and relevant title (max 6 words)
   }
 
   .chat-area {
-    flex-grow: 1; // Take remaining horizontal space
+    position: relative;
+    z-index: 1;
+    width: 700px;
+    max-width: 700px;
+    min-width: 350px;
+    margin: auto;
+    align-self: center;
     display: flex;
     flex-direction: column;
-    height: calc(100vh - 40px); // Adjust height considering padding
-    max-width: 1200px; // Limit maximum width
-    margin: 0 auto; // Center the chat area when it hits max width
+    justify-content: flex-start;
+    height: auto;
+    max-height: 96vh;
 
     .chat-content {
       flex-grow: 1;
@@ -592,6 +733,10 @@ Based on this exchange, generate a very concise and relevant title (max 6 words)
           border-radius: 8px;
           cursor: pointer;
           transition: background-color 0.3s ease;
+          font-size: 2rem;
+          font-family: 'Fira Mono', 'Consolas', 'Menlo', 'Monaco', 'Liberation Mono', 'Courier New', monospace;
+          min-width: 100px; // Ensures button width stays the same for both 'Start' and 'Stop'
+          text-align: center;
 
           &:hover:not(:disabled) {
             background-color: rgba(33, 136, 56, 0.9);
@@ -721,6 +866,16 @@ Based on this exchange, generate a very concise and relevant title (max 6 words)
     }
   }
 
+  @media (max-width: 1100px) {
+    .chat-area {
+      max-width: 100vw;
+      min-width: 0;
+      width: 100vw;
+      margin: 0 10px;
+      height: 90vh;
+    }
+  }
+
   .api-key-missing {
     display: flex;
     align-items: center;
@@ -746,5 +901,65 @@ Based on this exchange, generate a very concise and relevant title (max 6 words)
         line-height: 1.5;
       }
     }
+  }
+
+  .home-view {
+    display: flex;
+    height: 100vh;
+    width: 100vw;
+    padding: 0;
+    box-sizing: border-box;
+    justify-content: center;
+    align-items: stretch;
+  }
+
+  .sidebar {
+    flex: 0 0 auto;
+    min-width: 200px;
+    max-width: 350px;
+    width: 100%;
+    margin-right: 0;
+  }
+
+  .chat-area {
+    flex: 0 0 700px;
+    max-width: 700px;
+    min-width: 350px;
+    margin: 0 40px;
+    align-self: center;
+  }
+
+  @media (max-width: 1100px) {
+    .chat-area {
+      max-width: 100vw;
+      min-width: 0;
+      width: 100vw;
+      margin: 0 10px;
+    }
+  }
+
+  .show-sidebar-btn {
+    position: absolute;
+    left: 0;
+    top: 20px;
+    z-index: 10;
+    background: rgba(40, 167, 69, 0.7);
+    color: #fff;
+    border: none;
+    border-radius: 0 8px 8px 0;
+    font-size: 2rem;
+    padding: 8px 16px;
+    cursor: pointer;
+    box-shadow: 2px 0 8px rgba(0,0,0,0.1);
+    transition: background 0.2s;
+    &:hover { background: rgba(33, 136, 56, 0.9); }
+  }
+
+  .sidebar-slide-enter-active, .sidebar-slide-leave-active {
+    transition: width 0.3s cubic-bezier(.4,2,.6,1), opacity 0.3s;
+  }
+  .sidebar-slide-enter-from, .sidebar-slide-leave-to {
+    width: 0;
+    opacity: 0;
   }
 </style>
