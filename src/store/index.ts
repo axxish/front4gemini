@@ -1,5 +1,4 @@
 import { defineStore } from 'pinia';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // Define the structure for a single message in a conversation
 interface Message {

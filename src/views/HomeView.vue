@@ -182,9 +182,14 @@
                   // Add other categories as needed
                 ],
               });
-          } catch (e: any) {
-            console.error('Failed to initialize GoogleGenerativeAI:', e);
-            error.value = `Failed to initialize AI. Check API Key and configuration. Error: ${e.message}`;
+          } catch (e) {
+            if (e instanceof Error) {
+              console.error('Failed to initialize GoogleGenerativeAI:', e);
+              error.value = `Failed to initialize AI. Check API Key and configuration. Error: ${e.message}`;
+            } else {
+              console.error('Failed to initialize GoogleGenerativeAI:', e);
+              error.value = 'Failed to initialize AI. Check API Key and configuration.';
+            }
             chatSession.value = null;
           }
         } else {
@@ -220,19 +225,40 @@
 
         try {
           // Add user message to conversation
-          const userMessage = {
-            role: 'user' as const,
-            parts: [{ text: messageText }],
+          store.addMessageToCurrentConversation(messageText, 'user');
+
+          // Add a temporary streaming model message
+          const streamingMessageId = `msg-streaming-${Date.now()}`;
+          const streamingMessage = {
+            id: streamingMessageId,
+            role: 'model' as const, // Fix: ensure literal type
+            text: '',
+            timestamp: Date.now(),
           };
-          store.addMessageToCurrentConversation(userMessage.parts[0].text, 'user');
+          if (currentConversation.value) {
+            currentConversation.value.history.push(streamingMessage);
+          }
 
-          // Send the message to the API
-          const result = await chatSession.value.sendMessage(messageText);
-          const response = await result.response;
-          const responseText = response.text();
+          // Use streaming API
+          const stream = await chatSession.value.sendMessageStream(messageText);
+          let fullText = '';
+          for await (const chunk of stream.stream) {
+            fullText += chunk.text();
+            // Update the streaming message text
+            if (currentConversation.value) {
+              const msg = currentConversation.value.history.find(m => m.id === streamingMessageId);
+              if (msg) msg.text = fullText;
+            }
+          }
 
-          // Add the model's response
-          store.addMessageToCurrentConversation(responseText, 'model');
+          // Replace the streaming message with a finalized message
+          if (currentConversation.value) {
+            const idx = currentConversation.value.history.findIndex(m => m.id === streamingMessageId);
+            if (idx !== -1) {
+              currentConversation.value.history.splice(idx, 1);
+              store.addMessageToCurrentConversation(fullText, 'model');
+            }
+          }
 
           // If this was the first model response in the conversation, generate a title
           if (currentConversation.value.history.filter(msg => msg.role === 'model').length === 1) {
@@ -246,7 +272,7 @@
               });
 
               // Send context and request a structured title
-              const titlePrompt = `Context - User: "${messageText}" Assistant: "${responseText}"
+              const titlePrompt = `Context - User: "${messageText}" Assistant: "${fullText}"
 Based on this exchange, generate a very concise and relevant title (max 6 words). Respond with ONLY the title - no quotes, no explanation, no extra text.`;
 
               const titleResult = await titleSession.sendMessage(titlePrompt);
@@ -259,6 +285,7 @@ Based on this exchange, generate a very concise and relevant title (max 6 words)
               console.error('Error generating title:', e);
             }
           }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (e: any) {
           console.error('Error sending message:', e);
           error.value = `Error communicating with Gemini: ${e.message}`;
