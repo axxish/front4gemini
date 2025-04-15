@@ -6,6 +6,9 @@
 
 **Gemini Frontend** is a privacy-focused, open-source web client for interacting with Google Generative AI models (Gemini, etc). It allows you to chat with Google's models using your own API key, manage multiple conversations, and select from available models—all in a modern, responsive interface.
 
+> **Standalone/Embeddable:**
+> This app can be bundled into a single HTML file (with all JavaScript and CSS inlined), making it easy to embed or use as a standalone web page. See the build scripts for details.
+
 ## Key Features
 
 - **Model Selection:** Dynamically fetches and lists all available Google Generative AI models that support chat, letting you choose which one to use for your session.
