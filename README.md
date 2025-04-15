@@ -1,6 +1,6 @@
 # Gemini Frontend
 
-![App Screenshot](screenshot.png)
+![App Screenshot](screenshot.PNG)
 
 ## Overview
 
