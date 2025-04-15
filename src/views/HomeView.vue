@@ -1,12 +1,5 @@
 <template>
   <div class="home-view">
-    <!-- Burger Menu Button (Mobile) -->
-    <button class="burger-menu" @click="toggleSidebar">
-      <div class="burger-line"></div>
-      <div class="burger-line"></div>
-      <div class="burger-line"></div>
-    </button>
-
     <!-- Sidebar for Conversations (REQ-002) -->
     <transition name="sidebar-slide">
       <SidebarMenu
@@ -527,6 +520,14 @@ Based on this exchange, generate a very concise and relevant title (max 6 words)
     }
     .mobile-overlay {
       display: block;
+    }
+    /* Disable sidebar transition on mobile for instant open/close */
+    .sidebar-slide-enter-active, .sidebar-slide-leave-active {
+      transition: none !important;
+    }
+    .sidebar-slide-enter-from, .sidebar-slide-leave-to {
+      width: 0;
+      opacity: 0;
     }
   }
 </style>
