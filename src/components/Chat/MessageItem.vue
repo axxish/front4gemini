@@ -2,7 +2,7 @@
   <div
     :class="['message', message.role, { error: message.role === 'model' && message.text.startsWith('[ERROR]') }]"
   >
-    <strong>{{ message.role === 'user' ? 'You' : 'Gemini' }}:</strong>
+    <!-- Removed model/user name label -->
     <div class="markdown-content">
       <span v-if="isLoading && !error && isLast && message.role === 'model' && !message.text">{{ spinnerChar }}</span>
       <span v-else v-html="renderMarkdown(message.text.startsWith('[ERROR]') ? message.text.slice(7) : message.text)"></span>

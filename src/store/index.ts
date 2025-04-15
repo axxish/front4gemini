@@ -21,6 +21,8 @@ interface AppState {
   apiKey: string | null; // API key for authentication
   conversations: Conversation[]; // List of all conversations
   currentConversationId: string | null; // ID of the currently active conversation
+  models: Array<{ name: string; displayName: string }>; // Available models
+  selectedModel: string; // Model name (id)
 }
 
 // Helper function to load state from localStorage
@@ -50,6 +52,8 @@ export const useAppStore = defineStore('app', {
       apiKey: null,
       conversations: [],
       currentConversationId: null,
+      models: [],
+      selectedModel: '',
       ...loadState(),
     };
 
@@ -77,11 +81,31 @@ export const useAppStore = defineStore('app', {
     getApiKey: (state): string | null => {
       return state.apiKey;
     },
+    getModels: (state): Array<{ name: string; displayName: string }> => {
+      return state.models;
+    },
+    getSelectedModel: (state): string => {
+      return state.selectedModel;
+    },
   },
 
   actions: {
     setApiKey(key: string) {
       this.apiKey = key;
+      saveState(this.$state);
+    },
+
+    setModels(models: Array<{ name: string; displayName: string }>) {
+      this.models = models;
+      // If no selected model, set to first model
+      if (!this.selectedModel && models.length > 0) {
+        this.selectedModel = models[0].name;
+      }
+      saveState(this.$state);
+    },
+
+    setSelectedModel(modelName: string) {
+      this.selectedModel = modelName;
       saveState(this.$state);
     },
 

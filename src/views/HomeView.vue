@@ -8,11 +8,14 @@
         :currentConversationId="currentConversationId"
         :apiKey="apiKey"
         :isSidebarOpen="isSidebarOpen"
+        :models="models"
+        :selectedModel="selectedModel"
         @collapse="collapseSidebar"
         @new-conversation="startNewConversation"
         @switch-conversation="switchConversation"
         @delete-conversation="deleteConversation"
         @update-api-key="updateApiKey"
+        @update-selected-model="updateSelectedModel"
       />
     </transition>
     <button v-if="sidebarCollapsed" class="show-sidebar-btn" @click="expandSidebar" title="Show menu">☰</button>
@@ -71,6 +74,41 @@
   import ChatArea from '@/components/Chat/ChatArea.vue';
   import MessageList from '@/components/Chat/MessageList.vue';
   import UserInput from '@/components/Chat/UserInput.vue';
+  import { Store } from 'pinia';
+  
+  interface GoogleModel {
+    name: string;
+    displayName: string;
+    [key: string]: unknown;
+  }
+
+  // Helper to load models from Google API
+  async function loadModels(store: ReturnType<typeof useAppStore>, apiKey: string) {
+    if (!apiKey) return;
+    let cached = localStorage.getItem('modelListCache');
+    let models: GoogleModel[] = [];
+    if (cached) {
+      try {
+        models = JSON.parse(cached);
+      } catch {
+        // Ignore JSON parse errors and fallback to fetching models
+      }
+    } else {
+      try {
+        const resp = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`
+        );
+        const data = await resp.json();
+        models = (data.models || [])
+          .filter((m: GoogleModel) => m.displayName && m.name && Array.isArray(m.supportedGenerationMethods) && m.supportedGenerationMethods.includes('generateContent'));
+        models = models.map((m: GoogleModel) => ({ name: m.name, displayName: m.displayName }));
+        localStorage.setItem('modelListCache', JSON.stringify(models));
+      } catch (e) {
+        models = [{ name: 'models/gemini-2.0-flash', displayName: 'Gemini 2.0 Flash' }];
+      }
+    }
+    store.setModels(models);
+  }
 
   export default defineComponent({
     name: 'HomeView',
@@ -123,6 +161,8 @@
       const conversations = computed(() => store.conversations);
       const currentConversationId = computed(() => store.currentConversationId);
       const currentConversation = computed(() => store.currentConversation);
+      const models = computed(() => store.getModels);
+      const selectedModel = computed(() => store.getSelectedModel);
 
       // Spinner animation state
       const spinnerFrames = ['|', '/', '-', '\\'];
@@ -131,6 +171,10 @@
       let spinnerInterval: number | null = null;
 
       onMounted(() => {
+        // Load models on first mount if not cached, and whenever API key changes
+        if (apiKey.value) {
+          loadModels(store, apiKey.value);
+        }
         spinnerInterval = window.setInterval(() => {
           spinnerIndex = (spinnerIndex + 1) % spinnerFrames.length;
           spinnerChar.value = spinnerFrames[spinnerIndex];
@@ -140,14 +184,21 @@
         if (spinnerInterval) clearInterval(spinnerInterval);
       });
 
+      watch(apiKey, (newKey, oldKey) => {
+        if (newKey && newKey !== oldKey) {
+          localStorage.removeItem('modelListCache');
+          loadModels(store, newKey);
+        }
+      });
+
       // Function to initialize or update the chat session when API key or conversation changes
       const initializeChat = () => {
         error.value = null; // Clear previous errors
-        if (apiKey.value && currentConversation.value) {
+        if (apiKey.value && currentConversation.value && selectedModel.value) {
           try {
             const genAI = new GoogleGenerativeAI(apiKey.value);
             chatSession.value = genAI
-              .getGenerativeModel({ model: 'gemini-2.0-flash' }) // Changed model to gemini-2.0-flash
+              .getGenerativeModel({ model: selectedModel.value })
               .startChat({
                 // Pass existing history to the chat session
                 history: currentConversation.value.history.map((message) => ({
@@ -329,6 +380,10 @@ Based on this exchange, generate a very concise and relevant title (max 6 words)
         store.deleteConversation(id);
       };
 
+      const updateSelectedModel = (modelName: string) => {
+        store.setSelectedModel(modelName);
+      };
+
       const isSidebarOpen = ref(false);
       const sidebarCollapsed = ref(false);
       const collapseSidebar = () => { sidebarCollapsed.value = true; };
@@ -400,6 +455,9 @@ Based on this exchange, generate a very concise and relevant title (max 6 words)
         collapseSidebar,
         expandSidebar,
         sidebarWidth,
+        models,
+        selectedModel,
+        updateSelectedModel,
       };
     },
   });

@@ -14,6 +14,18 @@
       />
     </div>
     <ApiKeyInput :apiKey="apiKey" @update-api-key="$emit('update-api-key', $event)" />
+    <div class="model-select-section">
+      <label for="modelSelect">Model:</label>
+      <select
+        id="modelSelect"
+        :value="selectedModel"
+        @change="$emit('update-selected-model', ($event.target as HTMLSelectElement).value)"
+      >
+        <option v-for="model in models" :key="model.name" :value="model.name">
+          {{ model.displayName }}
+        </option>
+      </select>
+    </div>
   </div>
 </template>
 
@@ -29,9 +41,11 @@ export default defineComponent({
     conversations: Array,
     currentConversationId: String,
     apiKey: String,
-    isSidebarOpen: Boolean
+    isSidebarOpen: Boolean,
+    selectedModel: String,
+    models: Array
   },
-  emits: ['collapse', 'new-conversation', 'switch-conversation', 'delete-conversation', 'update-api-key']
+  emits: ['collapse', 'new-conversation', 'switch-conversation', 'delete-conversation', 'update-api-key', 'update-selected-model']
 });
 </script>
 
