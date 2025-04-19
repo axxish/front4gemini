@@ -22,7 +22,10 @@ export default defineComponent({
   name: 'MessageList',
   components: { MessageItem },
   props: {
-    messages: Array,
+    messages: {
+      type: Array as () => Array<Record<string, any>>,
+      required: true
+    },
     isLoading: Boolean,
     error: String,
     spinnerChar: String,

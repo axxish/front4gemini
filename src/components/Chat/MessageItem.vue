@@ -1,11 +1,9 @@
 <template>
-  <div
-    :class="['message', message.role, { error: message.role === 'model' && message.text.startsWith('[ERROR]') }]"
-  >
+  <div v-if="message" :class="['message', message.role, { error: message.role === 'model' && message.text?.startsWith('[ERROR]') }]">
     <!-- Removed model/user name label -->
     <div class="markdown-content">
       <span v-if="isLoading && !error && isLast && message.role === 'model' && !message.text">{{ spinnerChar }}</span>
-      <span v-else v-html="renderMarkdown(message.text.startsWith('[ERROR]') ? message.text.slice(7) : message.text)"></span>
+      <span v-else v-html="renderMarkdown ? renderMarkdown(message.text?.startsWith('[ERROR]') ? message.text?.slice(7) : message.text ?? '') : ''"></span>
     </div>
   </div>
 </template>
@@ -15,7 +13,11 @@ import { defineComponent } from 'vue';
 export default defineComponent({
   name: 'MessageItem',
   props: {
-    message: Object,
+    message: {
+      type: Object,
+      required: true,
+      default: () => ({ role: 'user', text: '', id: '', timestamp: Date.now() })
+    },
     isLast: Boolean,
     isLoading: Boolean,
     error: String,

@@ -1,12 +1,10 @@
 <template>
-  <div class="home-view">
-    <!-- Sidebar for Conversations (REQ-002) -->
-    <transition name="sidebar-slide">
+  <div class="layout-root">
+    <div v-if="!sidebarCollapsed" class="sidebar-container">
       <SidebarMenu
-        v-if="!sidebarCollapsed"
         :conversations="conversations"
-        :currentConversationId="currentConversationId"
-        :apiKey="apiKey"
+        :currentConversationId="currentConversationId ?? undefined"
+        :apiKey="apiKey ?? undefined"
         :isSidebarOpen="isSidebarOpen"
         :models="models"
         :selectedModel="selectedModel"
@@ -17,46 +15,39 @@
         @update-api-key="updateApiKey"
         @update-selected-model="updateSelectedModel"
       />
-    </transition>
+    </div>
     <button v-if="sidebarCollapsed" class="show-sidebar-btn" @click="expandSidebar" title="Show menu">☰</button>
-
-    <!-- Overlay for mobile -->
-    <div 
-      v-if="isSidebarOpen" 
-      class="mobile-overlay"
-      @click="toggleSidebar"
-    ></div>
-
-    <!-- Main Chat Area -->
-    <ChatArea>
-      <div v-if="!apiKey" class="api-key-missing">
-        <div class="alert">
-          <h3>⚠️ API Key Required</h3>
-          <p>Please enter your Google AI API key in the sidebar to start chatting.</p>
-        </div>
+    <div class="main-area">
+      <div class="chat-area-outer">
+        <ChatArea>
+          <div v-if="!apiKey" class="api-key-missing">
+            <div class="alert">
+              <h3>⚠️ API Key Required</h3>
+              <p>Please enter your Google AI API key in the sidebar to start chatting.</p>
+            </div>
+          </div>
+          <div v-else-if="currentConversation" class="chat-content">
+            <h3>{{ currentConversation.name }}</h3>
+            <MessageList
+              :messages="currentConversation.history"
+              :isLoading="isLoading"
+              :error="error ?? undefined"
+              :spinnerChar="spinnerChar"
+              :renderMarkdown="renderMarkdown"
+            />
+            <UserInput
+              v-model="userInput"
+              :isLoading="isLoading"
+              @send="sendMessage"
+              @stop-streaming="stopStreaming"
+            />
+          </div>
+          <div v-else>
+            <p>Select or start a conversation.</p>
+          </div>
+        </ChatArea>
       </div>
-      <div v-else-if="currentConversation" class="chat-content">
-        <h3>{{ currentConversation.name }}</h3>
-        <!-- Chat History (REQ-001, REQ-008) -->
-        <MessageList
-          :messages="currentConversation.history"
-          :isLoading="isLoading"
-          :error="error"
-          :spinnerChar="spinnerChar"
-          :renderMarkdown="renderMarkdown"
-        />
-        <!-- User Input -->
-        <UserInput
-          v-model="userInput"
-          :isLoading="isLoading"
-          @send="sendMessage"
-          @stop-streaming="stopStreaming"
-        />
-      </div>
-      <div v-else>
-        <p>Select or start a conversation.</p>
-      </div>
-    </ChatArea>
+    </div>
   </div>
 </template>
 
@@ -464,128 +455,199 @@ Based on this exchange, generate a very concise and relevant title (max 6 words)
 </script>
 
 <style scoped lang="scss">
-  .api-key-missing {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    text-align: center;
-    .alert {
-      background-color: rgba(255, 193, 7, 0.2);
-      border: 1px solid rgba(255, 193, 7, 0.5);
-      border-radius: 8px;
-      padding: 20px;
-      max-width: 400px;
-      h3 {
-        color: #ffc107;
-        margin-top: 0;
-        margin-bottom: 10px;
-      }
-      p {
-        margin: 0;
-        line-height: 1.5;
-      }
+.layout-root {
+  display: flex;
+  flex-direction: row;
+  height: 100vh;
+  width: 100vw;
+  box-sizing: border-box;
+  background: none;
+  position: relative;
+}
+.sidebar-container {
+  width: 320px;
+  min-width: 220px;
+  max-width: 400px;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  z-index: 2;
+}
+.main-area {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+.chat-area-outer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100vh;
+}
+.show-sidebar-btn {
+  position: absolute;
+  left: 0;
+  top: 20px;
+  z-index: 10;
+  background: rgba(40, 167, 69, 0.7);
+  color: #fff;
+  border: none;
+  border-radius: 0 8px 8px 0;
+  font-size: 2rem;
+  padding: 8px 16px;
+  cursor: pointer;
+  box-shadow: 2px 0 8px rgba(0,0,0,0.1);
+  transition: background 0.2s;
+  &:hover { background: rgba(33, 136, 56, 0.9); }
+}
+.api-key-missing {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  text-align: center;
+  .alert {
+    background-color: rgba(255, 193, 7, 0.2);
+    border: 1px solid rgba(255, 193, 7, 0.5);
+    border-radius: 8px;
+    padding: 20px;
+    max-width: 400px;
+    h3 {
+      color: #ffc107;
+      margin-top: 0;
+      margin-bottom: 10px;
+    }
+    p {
+      margin: 0;
+      line-height: 1.5;
     }
   }
-  .home-view {
-    display: flex;
-    flex-direction: row;
-    height: 100vh;
+}
+@media (max-width: 900px) {
+  .layout-root {
+    flex-direction: column;
+  }
+  .sidebar-container {
     width: 100vw;
-    box-sizing: border-box;
+    max-width: 100vw;
+    min-width: 0;
+    height: auto;
     position: relative;
-    background: none;
-    justify-content: center;
-    align-items: center;
-    padding: 0;
   }
+  .main-area {
+    width: 100vw;
+    align-items: stretch;
+  }
+  .chat-area-outer {
+    width: 100vw;
+    height: auto;
+  }
+}
+.home-view {
+  display: flex;
+  flex-direction: row;
+  height: 100vh;
+  width: 100vw;
+  box-sizing: border-box;
+  position: relative;
+  background: none;
+  justify-content: center;
+  align-items: center;
+  padding: 0;
+}
+.burger-menu {
+  display: none;
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  z-index: 1000;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 10px;
+  width: 40px;
+  height: 40px;
+  border-radius: 5px;
+  background-color: rgba(40, 167, 69, 0.7);
+  .burger-line {
+    width: 25px;
+    height: 2px;
+    background-color: white;
+    margin: 5px 0;
+    transition: 0.3s;
+  }
+  &:hover {
+    background-color: rgba(33, 136, 56, 0.9);
+  }
+}
+.mobile-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 100;
+}
+.show-sidebar-btn {
+  position: absolute;
+  left: 0;
+  top: 20px;
+  z-index: 10;
+  background: rgba(40, 167, 69, 0.7);
+  color: #fff;
+  border: none;
+  border-radius: 0 8px 8px 0;
+  font-size: 2rem;
+  padding: 8px 16px;
+  cursor: pointer;
+  box-shadow: 2px 0 8px rgba(0,0,0,0.1);
+  transition: background 0.2s;
+  &:hover { background: rgba(33, 136, 56, 0.9); }
+}
+.sidebar-slide-enter-active, .sidebar-slide-leave-active {
+  transition: width 0.3s cubic-bezier(.4,2,.6,1), opacity 0.3s;
+}
+.sidebar-slide-enter-from, .sidebar-slide-leave-to {
+  width: 0;
+  opacity: 0;
+}
+/* Basic Scrollbar Styling (Optional) */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+@media (max-width: 768px) {
   .burger-menu {
-    display: none;
-    position: fixed;
-    top: 20px;
-    left: 20px;
-    z-index: 1000;
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 10px;
-    width: 40px;
-    height: 40px;
-    border-radius: 5px;
-    background-color: rgba(40, 167, 69, 0.7);
-    .burger-line {
-      width: 25px;
-      height: 2px;
-      background-color: white;
-      margin: 5px 0;
-      transition: 0.3s;
-    }
-    &:hover {
-      background-color: rgba(33, 136, 56, 0.9);
-    }
+    display: block;
   }
   .mobile-overlay {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: rgba(0, 0, 0, 0.5);
-    z-index: 100;
+    display: block;
   }
-  .show-sidebar-btn {
-    position: absolute;
-    left: 0;
-    top: 20px;
-    z-index: 10;
-    background: rgba(40, 167, 69, 0.7);
-    color: #fff;
-    border: none;
-    border-radius: 0 8px 8px 0;
-    font-size: 2rem;
-    padding: 8px 16px;
-    cursor: pointer;
-    box-shadow: 2px 0 8px rgba(0,0,0,0.1);
-    transition: background 0.2s;
-    &:hover { background: rgba(33, 136, 56, 0.9); }
-  }
+  /* Disable sidebar transition on mobile for instant open/close */
   .sidebar-slide-enter-active, .sidebar-slide-leave-active {
-    transition: width 0.3s cubic-bezier(.4,2,.6,1), opacity 0.3s;
+    transition: none !important;
   }
   .sidebar-slide-enter-from, .sidebar-slide-leave-to {
     width: 0;
     opacity: 0;
   }
-  /* Basic Scrollbar Styling (Optional) */
-  ::-webkit-scrollbar {
-    width: 8px;
-  }
-  ::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 10px;
-  }
-  ::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.3);
-    border-radius: 10px;
-  }
-  ::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.5);
-  }
-  @media (max-width: 768px) {
-    .burger-menu {
-      display: block;
-    }
-    .mobile-overlay {
-      display: block;
-    }
-    /* Disable sidebar transition on mobile for instant open/close */
-    .sidebar-slide-enter-active, .sidebar-slide-leave-active {
-      transition: none !important;
-    }
-    .sidebar-slide-enter-from, .sidebar-slide-leave-to {
-      width: 0;
-      opacity: 0;
-    }
-  }
+}
 </style>

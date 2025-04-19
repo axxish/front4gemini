@@ -10,7 +10,10 @@ import { defineComponent } from 'vue';
 export default defineComponent({
   name: 'ConversationListItem',
   props: {
-    conversation: Object,
+    conversation: {
+      type: Object,
+      required: true
+    },
     active: Boolean
   },
   emits: ['switch', 'delete']
