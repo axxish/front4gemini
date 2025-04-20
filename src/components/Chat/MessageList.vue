@@ -18,12 +18,21 @@
 <script lang="ts">
 import { defineComponent } from 'vue';
 import MessageItem from './MessageItem.vue';
+
+// Define a Message interface for type safety
+export interface Message {
+  id: string;
+  role: string;
+  text: string;
+  timestamp: number;
+}
+
 export default defineComponent({
   name: 'MessageList',
   components: { MessageItem },
   props: {
     messages: {
-      type: Array as () => Array<Record<string, any>>,
+      type: Array as () => Array<Message>,
       required: true
     },
     isLoading: Boolean,

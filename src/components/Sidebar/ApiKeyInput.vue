@@ -23,7 +23,18 @@ export default defineComponent({
 </script>
 
 <style scoped lang="scss">
+.api-key-section {
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid rgba(255, 255, 255, 0.3);
+
+  label {
+    display: block;
+    margin-bottom: 5px;
+  }
+
   input {
+    width: 100%;
     border: 1px solid rgba(255, 255, 255, 0.3);
     border-radius: 5px;
     padding: 8px;
@@ -32,9 +43,11 @@ export default defineComponent({
     box-sizing: border-box;
     outline: none;
     transition: box-shadow 0.3s ease, border-color 0.3s ease;
+
+    &:focus {
+      border-color: rgba(40, 167, 69, 0.7);
+      box-shadow: 0 0 10px rgba(40, 167, 69, 0.7);
+    }
   }
-  input:focus {
-    border-color: rgba(40, 167, 69, 0.7);
-    box-shadow: 0 0 10px rgba(40, 167, 69, 0.7);
-  }
+}
 </style>

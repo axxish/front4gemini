@@ -10,15 +10,23 @@
       @click="onSend"
       :disabled="!inputValue.trim()"
       title="Send"
+      class="radial-send-btn"
     >
-      Start
+      <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="14" cy="14" r="13" stroke="#fff" stroke-width="2" fill="rgba(255,255,255,0.15)"/>
+        <polygon points="11,8 21,14 11,20 11,8" fill="#fff"/>
+      </svg>
     </button>
     <button
       v-else
       @click="$emit('stop-streaming')"
       title="Stop streaming"
+      class="radial-send-btn"
     >
-      Stop
+      <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="14" cy="14" r="13" stroke="#fff" stroke-width="2" fill="rgba(255,255,255,0.15)"/>
+        <rect x="10" y="10" width="8" height="8" rx="2" fill="#fff"/>
+      </svg>
     </button>
   </div>
 </template>
@@ -94,5 +102,39 @@ export default defineComponent({
         cursor: not-allowed;
       }
     }
+    .radial-send-btn {
+      background: none;
+      padding: 0;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: none;
+      outline: none;
+      transition: filter 0.2s, opacity 0.2s;
+      opacity: 1;
+      filter: none;
+      &:hover:not(:disabled) svg {
+        filter: drop-shadow(0 0 8px #fff) brightness(1.5);
+        opacity: 1;
+      }
+      &:disabled,
+      &[disabled] {
+        opacity: 0.5;
+        filter: grayscale(1) brightness(0.7);
+        cursor: not-allowed;
+      }
+      svg {
+        display: block;
+        transition: filter 0.2s, opacity 0.2s;
+      }
+    }
+  }
+  .user-input button,
+  .user-input .radial-send-btn {
+    background: none !important;
+    border: none !important;
+    box-shadow: none !important;
   }
 </style>

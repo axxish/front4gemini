@@ -26,6 +26,8 @@ export default defineComponent({
     height: 100vh;
     max-height: 100vh;
     overflow: hidden;
+    padding-top: 32px;
+    padding-bottom: 32px;
     .chat-content {
       flex: 1 1 0;
       display: flex;

@@ -19,8 +19,14 @@ export default defineComponent({
   name: 'ConversationList',
   components: { ConversationListItem },
   props: {
-    conversations: Array,
-    currentConversationId: String
+    conversations: {
+      type: Array as () => { id: string }[],
+      required: true
+    },
+    currentConversationId: {
+      type: String,
+      required: true
+    }
   },
   emits: ['switch', 'delete']
 });

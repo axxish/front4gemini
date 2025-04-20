@@ -16,7 +16,7 @@
         @update-selected-model="updateSelectedModel"
       />
     </div>
-    <button v-if="sidebarCollapsed" class="show-sidebar-btn" @click="expandSidebar" title="Show menu">☰</button>
+    <div v-else-if="sidebarCollapsed" class="sidebar-collapsed" @click="expandSidebar" title="Expand sidebar"></div>
     <div class="main-area">
       <div class="chat-area-outer">
         <ChatArea>
@@ -65,7 +65,6 @@
   import ChatArea from '@/components/Chat/ChatArea.vue';
   import MessageList from '@/components/Chat/MessageList.vue';
   import UserInput from '@/components/Chat/UserInput.vue';
-  import { Store } from 'pinia';
   
   interface GoogleModel {
     name: string;
@@ -472,6 +471,24 @@ Based on this exchange, generate a very concise and relevant title (max 6 words)
   display: flex;
   flex-direction: column;
   z-index: 2;
+}
+.sidebar-collapsed {
+  width: 8px;
+  min-width: 8px;
+  max-width: 12px;
+  height: 100vh;
+  background: rgba(255,255,255,0.10);
+  border-right: 1.5px solid rgba(255,255,255,0.18);
+  box-shadow: 2px 0 12px 0 rgba(0,0,0,0.08);
+  backdrop-filter: blur(8px);
+  cursor: pointer;
+  transition: background 0.2s, width 0.2s;
+  z-index: 3;
+  position: relative;
+  &:hover {
+    background: rgba(255,255,255,0.18);
+    width: 16px;
+  }
 }
 .main-area {
   flex: 1 1 0;

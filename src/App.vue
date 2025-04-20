@@ -3,6 +3,8 @@
 </template>
 
 <style lang="scss">
+@import "@/styles/global.scss";
+
 html,
 body {
   margin: 0;

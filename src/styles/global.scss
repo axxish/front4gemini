@@ -1,0 +1,107 @@
+// GLOBAL STYLES FOR CONSISTENCY
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+
+:root {
+  --font-family-base: 'Inter', Avenir, Helvetica, Arial, sans-serif;
+  --font-family-mono: 'Fira Mono', 'Consolas', 'Menlo', 'Monaco', 'Liberation Mono', 'Courier New', monospace;
+  --color-bg: #001a00;
+  --color-bg-glass: rgba(255,255,255,0.1);
+  --color-primary: #28a745;
+  --color-primary-dark: #218838;
+  --color-accent: #ffc107;
+  --color-text: #fff;
+  --color-border: rgba(255,255,255,0.3);
+}
+
+html, body {
+  font-family: var(--font-family-base);
+  color: var(--color-text);
+  background: linear-gradient(135deg, #004d00, #003300, #001a00);
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-family-base);
+  font-weight: 700;
+  margin-top: 0;
+  color: var(--color-text);
+}
+
+button, input, select, textarea {
+  font-family: var(--font-family-base);
+  font-size: 1rem;
+  color: var(--color-text);
+  background: var(--color-bg-glass);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  box-sizing: border-box;
+  outline: none;
+  transition: box-shadow 0.3s, border-color 0.3s;
+}
+
+button {
+  background-color: var(--color-primary);
+  color: var(--color-text);
+  cursor: pointer;
+  padding: 10px 20px;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  transition: background 0.2s;
+}
+button:hover:not(:disabled) {
+  background-color: var(--color-primary-dark);
+}
+button:disabled {
+  background-color: rgba(108, 117, 125, 0.5);
+  cursor: not-allowed;
+}
+
+input, select, textarea {
+  background: rgba(0,0,0,0.2);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  padding: 8px;
+  border-radius: 8px;
+  transition: box-shadow 0.3s, border-color 0.3s, background 0.25s cubic-bezier(.4,0,.2,1);
+}
+input:focus, select:focus, textarea:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 10px var(--color-primary);
+}
+input:hover, select:hover, textarea:hover {
+  border-color: var(--color-primary);
+  background: rgba(40, 167, 69, 0.08);
+  box-shadow: none;
+  transition: background 0.25s cubic-bezier(.4,0,.2,1);
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+  background: transparent;
+}
+::-webkit-scrollbar-track {
+  background: rgba(255,255,255,0.06);
+  border-radius: 10px;
+  backdrop-filter: blur(4px);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.18);
+  border-radius: 10px;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 2px 8px 0 rgba(0,0,0,0.08);
+  border: 1px solid rgba(255,255,255,0.18);
+  min-height: 40px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,255,255,0.28);
+}
+
+/* For Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.18) rgba(255,255,255,0.06);
+}
